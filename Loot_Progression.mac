@@ -1,0 +1,180 @@
+|==== Sub Main
+Sub Main
+	/call SetUp_Variables
+	/call BuildIni
+
+	/varset MyStartingLoc ${Me.Y} ${Me.X}
+	/say #corpsefix
+	/delay 2
+	/hidec looted
+	/varset CorpseCount ${SpawnCount[npccorpse radius ${LootRadius}]}
+	/bc ${CorpseCount} corpses found to loot
+	:TargetCorpse
+	/if (${SpawnCount[npccorpse noalert 1]} > 0) {
+			/target npccorpse${If[${AlertIndex}, noalert ${AlertIndex},]} 
+			/if ((${Target.ID}) && (${Target.Type.Equal[Corpse]})) {
+				/if (${Target.Distance} > ${LootRadius}) {
+					/moveto loc ${MyStartingLoc}
+					/docommand /${DefaultChat} Done Looting.
+					/endmac
+				}
+				/face fast
+					
+				:MoveToCorpse
+				/if (${Target.Distance}>10) {
+					/moveto id ${Target.ID}
+					/delay 4
+					/goto :MoveToCorpse
+				}
+			}
+		/call LootCorpse
+		/goto :TargetCorpse
+	} else {
+		/moveto loc ${MyStartingLoc}
+		/docommand /${DefaultChat} Done Looting.
+		/if (${AlertIndex}) /squelch /alert clear ${AlertIndex}
+	}
+/return
+|==== End Main
+
+|==== Sub SetUp_Variables
+	Sub SetUp_Variables
+		/if (!${Defined[LootIni]})			/declare LootIni 					string 		outer Loot\${Zone.ShortName}\Loot_${Me.Class}
+		/if (!${Defined[LootRadius]}) 		/declare LootRadius 				int 		outer ${Ini[${LootIni},Settings,Loot Radius]}
+		/if (!${Defined[MinLootValue]})		/declare MinLootValue				int			outer ${Ini[${LootIni},Settings,Min Loot Value]}
+		/if (!${Defined[LootSpells]})		/declare LootSpells 				string 		outer ${Ini[${LootIni},Settings,Loot Spells]}
+		/if (!${Defined[DefaultChat]})		/declare DefaultChat				string 		outer ${Ini[${LootIni},Settings,Default Chat]}
+		/if (!${Defined[LootCount1]})		/declare LootCount1		 			int 		outer ${Ini[${LootIni},Settings,Loot Count1]}
+		/if (!${Defined[LootCount2]})		/declare LootCount2		 			int 		outer ${Ini[${LootIni},Settings,Loot Count2]}
+		/if (!${Defined[LootCount3]})		/declare LootCount3		 			int 		outer ${Ini[${LootIni},Settings,Loot Count3]}
+		/if (!${Defined[LootCount4]})		/declare LootCount4		 			int 		outer ${Ini[${LootIni},Settings,Loot Count4]}
+		/if (!${Defined[CorpseCount]}) 		/declare CorpseCount				int			outer 0
+		/if (!${Defined[CorpseList]})		/declare CorpseList					string		outer 
+		/if (!${Defined[MyStartingLoc]})	/declare MyStartingLoc 				string 		outer ${Me.Y} ${Me.X}
+	/return
+|==== End Set_UpVariables
+
+|==== Sub BuildIni
+	Sub BuildIni
+		/if (${Ini[${LootIni}].Length}) {
+			/call UpdateVariableValuesToIniSettings
+			/echo Loading Lootini values
+		} else {
+			/declare a string local Settings|A|B|C|D|E|F|G|H|I|J|K|L|M|N|O|P|Q|R|S|T|U|V|W|X|Y|Z|1|2|3|4|5|6|7|8|9|
+			/bc No Lootini file found, creating one
+			/declare i int local
+			/for i 1 to ${a.Count[|]}
+				/ini ${LootIni} "${a.Arg[${i},|]}"
+			/next i
+			/call InitialSettingsValues
+				/bc Lootini created
+			}
+	/return
+|==== End BuildIni
+
+|==== Sub InitialSettingsValues
+	Sub InitialSettingsValues
+		/if (!${Ini[${LootIni},Settings].Find[Loot Radius]})	/ini "${LootIni}" "Settings" "Loot Radius" "300"
+		/if (!${Ini[${LootIni},Settings].Find[Min Loot Value]}) /ini "${LootIni}" "Settings" "Min Loot Value" "1000"
+		/if (!${Ini[${LootIni},Settings].Find[Loot Spells]})	/ini "${LootIni}" "Settings" "Loot Spells" "True"
+		/if (!${Ini[${LootIni},Settings].Find[Default Chat]})	/ini "${LootIni}" "Settings" "Default Chat" "rsay"
+		/if (!${Ini[${LootIni},Settings].Find[LootCount1]})		/ini "${LootIni}" "Settings" "Loot Count1" "0"
+		/if (!${Ini[${LootIni},Settings].Find[LootCount2]})		/ini "${LootIni}" "Settings" "Loot Count2" "0"
+		/if (!${Ini[${LootIni},Settings].Find[LootCount3]})		/ini "${LootIni}" "Settings" "Loot Count3" "0"
+		/if (!${Ini[${LootIni},Settings].Find[LootCount4]})		/ini "${LootIni}" "Settings" "Loot Count4" "0"
+		/call UpdateVariableValuesToIniSettings
+	/return
+|==== End InitialSettingsValues
+
+|==== Sub UpdateVariableValuesToIniSettings
+	Sub UpdateVariableValuesToIniSettings
+		/varset LootRadius ${Ini[${LootIni},Settings,Loot Radius]}
+		/varset MinLootValue ${Ini[${LootIni},Settings,Min Loot Value]}
+		/varset LootSpells ${Ini[${LootIni},Settings,Loot Spells]}
+		/varset DefaultChat ${Ini[${LootIni},Settings,Default Chat]}
+		/varset LootCount1 ${Ini[${LootIni},Settings,Loot Count1]}
+		/varset LootCount2 ${Ini[${LootIni},Settings,Loot Count2]}
+		/varset LootCount3 ${Ini[${LootIni},Settings,Loot Count3]}
+		/varset LootCount4 ${Ini[${LootIni},Settings,Loot Count4]}
+	/return
+|==== End UpdateVariableValuesToIniSettings
+
+|==== Sub LootCorpse
+	Sub LootCorpse
+		/declare LootSlot int local 1
+		/declare cID string local
+		/declare ItemsOnCorpse int local		
+		/if (${Cursor.ID}) /autoi
+		/if (${Target.ID}) {
+			/if (${Target.DistanceU}>30) /say #corpsefix
+			/delay 1
+			:retryloot
+			/if ((${Target.ID}) && (${Target.Type.Equal[Corpse]})) {
+				/loot
+				/delay 5
+				/if (!${Window[LootWnd].Open}) /goto :retryloot
+			} else /return
+			/doevents
+			/delay 5s (${Corpse.Items})
+			/if (${Corpse.Items}) {
+				/varset cID ${Corpse.ID}
+				/if (${Window[LootWnd].Open} && ${Corpse.Items}) {
+					/varset ItemsOnCorpse ${Corpse.Items}
+					/for LootSlot 1 to ${ItemsOnCorpse}
+						:KeepLootingItems
+						/delay 2
+						/if ((${Corpse.Item[${LootSlot}].Value} > ${Math.Calc[${MinLootValue} * 1000]} && (!${Corpse.Item[${LootSlot}].NoDrop}))) {
+							/itemnotify loot${LootSlot} rightmouseup
+							/delay 4
+						} else /if (${Bool[(${LootSpells}==True)]} && ${Bool[${Corpse.Item[${LootSlot}].Scroll}]} && ${Corpse.Item[${LootSlot}].CanUse} && !${Bool[${Me.Book[${Corpse.Item[${LootSlot}].Scroll}]}]}) {
+							/if (${Int[${Math.Calc[${FindItemCount[=${Corpse.Item[${LootSlot}].Name}]}+${FindItemBankCount[=${Corpse.Item[${LootSlot}].Name}]}]}]}<1) {
+							/docommand /${DefaultChat} [SPELL] Looting ${Corpse.Item[${LootSlot}].ItemLink[CLICKABLE]}
+							/itemnotify loot${LootSlot} rightmouseup
+							/delay 4
+							}
+						} else /if (${Ini[${LootIni},${Corpse.Item[${LootSlot}].Name.Left[1]},${Corpse.Item[${LootSlot}]}].Equal[Keep]}) {
+							/ctrlkey /itemnotify loot${LootSlot} rightmouseup
+							/delay 4
+						} else /if (${Ini[${LootIni},${Corpse.Item[${LootSlot}].Name.Left[1]},${Corpse.Item[${LootSlot}]}].Equal[Announce]}) {
+							/docommand /${DefaultChat} ${Corpse.Item[${LootSlot}].ItemLink[CLICKABLE]} found! ID: ${cID}
+						} else /if (${Ini[${LootIni},${Corpse.Item[${LootSlot}].Name.Left[1]},${Corpse.Item[${LootSlot}]}].Equal[Single]}) {
+							/if (${Int[${Math.Calc[${FindItemCount[=${Corpse.Item[${LootSlot}].Name}]}+${FindItemBankCount[=${Corpse.Item[${LootSlot}].Name}]}]}]}<1) {
+								/itemnotify loot${LootSlot} rightmouseup
+								/delay 4
+							}
+						} else /if (${Ini[${LootIni},${Corpse.Item[${LootSlot}].Name.Left[1]},${Corpse.Item[${LootSlot}]}].Equal[Count1]}) {
+							/if (${Int[${Math.Calc[${FindItemCount[=${Corpse.Item[${LootSlot}].Name}]}+${FindItemBankCount[=${Corpse.Item[${LootSlot}].Name}]}]}]}<${LootCount1}) {
+								/docommand /${DefaultChat} Looting ${Corpse.Item[${LootSlot}].ItemLink[CLICKABLE]} - Looted: ${Int[${Math.Calc[${FindItemCount[=${Corpse.Item[${LootSlot}].Name}]}+1+${FindItemBankCount[=${Corpse.Item[${LootSlot}].Name}]}]}]} of ${LootCount1}
+								/itemnotify loot${LootSlot} rightmouseup
+								/delay 4
+							}
+						} else /if (${Ini[${LootIni},${Corpse.Item[${LootSlot}].Name.Left[1]},${Corpse.Item[${LootSlot}]}].Equal[Count2]}) {
+							/if (${Int[${Math.Calc[${FindItemCount[=${Corpse.Item[${LootSlot}].Name}]}+${FindItemBankCount[=${Corpse.Item[${LootSlot}].Name}]}]}]}<${LootCount2}) {
+								/docommand /${DefaultChat} Looting ${Corpse.Item[${LootSlot}].ItemLink[CLICKABLE]} - Looted: ${Int[${Math.Calc[${FindItemCount[=${Corpse.Item[${LootSlot}].Name}]}+1+${FindItemBankCount[=${Corpse.Item[${LootSlot}].Name}]}]}]} of ${LootCount2}
+								/itemnotify loot${LootSlot} rightmouseup
+								/delay 4
+							}
+						} else /if (${Ini[${LootIni},${Corpse.Item[${LootSlot}].Name.Left[1]},${Corpse.Item[${LootSlot}]}].Equal[Count3]}) {
+							/if (${Int[${Math.Calc[${FindItemCount[=${Corpse.Item[${LootSlot}].Name}]}+${FindItemBankCount[=${Corpse.Item[${LootSlot}].Name}]}]}]}<${LootCount3}) {
+								/docommand /${DefaultChat} Looting ${Corpse.Item[${LootSlot}].ItemLink[CLICKABLE]} - Looted: ${Int[${Math.Calc[${FindItemCount[=${Corpse.Item[${LootSlot}].Name}]}+1+${FindItemBankCount[=${Corpse.Item[${LootSlot}].Name}]}]}]} of ${LootCount3}
+								/itemnotify loot${LootSlot} rightmouseup
+								/delay 4
+							}
+						} else /if (${Ini[${LootIni},${Corpse.Item[${LootSlot}].Name.Left[1]},${Corpse.Item[${LootSlot}]}].Equal[Count4]}) {
+							/if (${Int[${Math.Calc[${FindItemCount[=${Corpse.Item[${LootSlot}].Name}]}+${FindItemBankCount[=${Corpse.Item[${LootSlot}].Name}]}]}]}<${LootCount4}) {
+								/docommand /${DefaultChat} Looting ${Corpse.Item[${LootSlot}].ItemLink[CLICKABLE]} - Looted: ${Int[${Math.Calc[${FindItemCount[=${Corpse.Item[${LootSlot}].Name}]}+1+${FindItemBankCount[=${Corpse.Item[${LootSlot}].Name}]}]}]} of ${LootCount4}
+								/itemnotify loot${LootSlot} rightmouseup
+								/delay 4
+							}
+						}
+					/next LootSlot
+				} else {/if (${Window[LootWnd].Open}) /notify LootWnd LW_DoneButton leftmouseup
+						/delay 5
+						/return
+					} 
+			}
+		}
+	/if (${Window[LootWnd].Open}) /notify LootWnd LW_DoneButton leftmouseup
+	/delay 5
+/return
+|==== End LootCorpse
