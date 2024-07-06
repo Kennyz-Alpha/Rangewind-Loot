@@ -12,6 +12,9 @@
 # Loot_Me.mac
 	Per character macro.  Builds ini in the Loot\Self folder.
 
+# Loot_UC.mac
+	Loots bulk items for creating UC1->3
+
 # ini Settings Information
 
 	Loot Radius - Distance to look for corpses to loot.  Default:300
